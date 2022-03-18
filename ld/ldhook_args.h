@@ -1,0 +1,1 @@
+void input_file_hook(char* name);
