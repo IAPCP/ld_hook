@@ -811,7 +811,10 @@ parse_args (unsigned argc, char **argv)
 
 	case 1:			/* File name.  */
 	  lang_add_input_file (optarg, lang_input_file_is_file_enum, NULL);
+
+	  /* HOOK */
 	  input_file_hook(optarg);
+
 	  break;
 
 	case OPTION_IGNORE:
