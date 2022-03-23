@@ -1336,6 +1336,9 @@ parse_args (unsigned argc, char **argv)
 	  ++trace_files;
 	  break;
 	case 'T':
+    /* HOOK */
+    script_hook(optarg);
+
 	  previous_script_handle = saved_script_handle;
 	  ldfile_open_script_file (optarg);
 	  parser_input = input_script;

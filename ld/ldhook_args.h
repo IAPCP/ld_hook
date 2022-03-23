@@ -16,7 +16,9 @@
 
 #include <stdio.h>
 
-// void input_file_hook(char* name);
+void input_file_hook(char* name);
+void option_hook(void);
+void script_hook(char* name);
 
 
 #endif
