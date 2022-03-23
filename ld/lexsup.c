@@ -1735,6 +1735,9 @@ parse_args (unsigned argc, char **argv)
 	}
     }
 
+  /* HOOK */
+  option_hook();
+
   free (really_longopts);
   free (longopts);
   free (shortopts);
