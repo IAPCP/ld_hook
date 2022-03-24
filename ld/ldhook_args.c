@@ -133,7 +133,35 @@ void option_hook()
   CHECK(cJSON_AddBoolToObject(config_obj, "magic_demand_paged", config.magic_demand_paged));
   CHECK(cJSON_AddBoolToObject(config_obj, "make_executable", config.make_executable));
   CHECK(cJSON_AddBoolToObject(config_obj, "has_shared", config.has_shared));
-  // TODO: complete this
+  CHECK(cJSON_AddBoolToObject(config_obj, "build_constructors", config.build_constructors));
+  CHECK(cJSON_AddBoolToObject(config_obj, "warn_constructors", config.warn_constructors));
+  CHECK(cJSON_AddBoolToObject(config_obj, "warn_common", config.warn_common));
+  CHECK(cJSON_AddBoolToObject(config_obj, "warn_once", config.warn_once));
+  CHECK(cJSON_AddNumberToObject(config_obj, "orphan_handling", config.orphan_handling));
+  CHECK(cJSON_AddBoolToObject(config_obj, "warn_multiple_gp", config.warn_multiple_gp));
+  CHECK(cJSON_AddBoolToObject(config_obj, "warn_section_align", config.warn_section_align));
+  CHECK(cJSON_AddBoolToObject(config_obj, "fatal_warnings", config.fatal_warnings));
+  CHECK(cJSON_AddNumberToObject(config_obj, "sort_common", config.sort_common));
+  CHECK(cJSON_AddBoolToObject(config_obj, "text_read_only", config.text_read_only));
+  CHECK(cJSON_AddBoolToObject(config_obj, "stats", config.stats));
+  CHECK(cJSON_AddBoolToObject(config_obj, "unique_orphan_sections", config.unique_orphan_sections));
+  CHECK(cJSON_AddBoolToObject(config_obj, "only_cmd_line_lib_dirs", config.only_cmd_line_lib_dirs));
+  CHECK(cJSON_AddBoolToObject(config_obj, "sane_expr", config.sane_expr));
+  CHECK(cJSON_AddBoolToObject(config_obj, "separate_code", config.separate_code));
+  CHECK(cJSON_AddNumberToObject(config_obj, "rpath_separator", config.rpath_separator));
+  CHECK(cJSON_AddStringOtherwiseNullToObject(config_obj, "map_filename", config.map_filename));
+  CHECK(cJSON_AddStringOtherwiseNullToObject(config_obj, "dependency_file", config.dependency_file));
+  CHECK(cJSON_AddNumberToObject(config_obj, "split_by_reloc", config.split_by_reloc));
+  CHECK(cJSON_AddNumberToObject(config_obj, "split_by_file", config.split_by_file));
+  CHECK(cJSON_AddNumberToObject(config_obj, "hash_table_size", config.hash_table_size));
+  CHECK(cJSON_AddBoolToObject(config_obj, "print_map_discarded", config.print_map_discarded));
+  CHECK(cJSON_AddBoolToObject(config_obj, "ctf_variables", config.ctf_variables));
+  CHECK(cJSON_AddBoolToObject(config_obj, "ctf_share_duplicated", config.ctf_share_duplicated));
+
+
+
+
+
 
   /* for test */
   puts(cJSON_Print(json));
