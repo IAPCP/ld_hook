@@ -96,6 +96,7 @@ void option_hook()
   CHECK(cJSON_AddBoolToObject(json, "verbose", verbose));
   CHECK(cJSON_AddBoolToObject(json, "version_printed", version_printed));
   CHECK(cJSON_AddBoolToObject(json, "demangling", demangling));
+  CHECK(cJSON_AddNumberToObject(json,"sort_section", sort_section));
 
   /* serialize args_type command_line */
   CHECK(command_line_obj = cJSON_CreateObject());
@@ -157,11 +158,6 @@ void option_hook()
   CHECK(cJSON_AddBoolToObject(config_obj, "print_map_discarded", config.print_map_discarded));
   CHECK(cJSON_AddBoolToObject(config_obj, "ctf_variables", config.ctf_variables));
   CHECK(cJSON_AddBoolToObject(config_obj, "ctf_share_duplicated", config.ctf_share_duplicated));
-
-
-
-
-
 
   /* for test */
   puts(cJSON_Print(json));
