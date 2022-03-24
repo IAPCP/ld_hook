@@ -637,10 +637,6 @@ parse_args (unsigned argc, char **argv)
       xmalloc (sizeof (*really_longopts) * (OPTION_COUNT + 1));
 
 
-    // `v1me` get args
-	for (int ii = 0; ii < argc; ii++) {
-		printf("[%d]: %s\n", ii, argv[ii]);
-	}
   /* Starting the short option string with '-' is for programs that
      expect options and other ARGV-elements in any order and that care about
      the ordering of the two.  We describe each non-option ARGV-element

@@ -246,6 +246,9 @@ main (int argc, char **argv)
   char *emulation;
   long start_time = get_run_time ();
 
+  /* Main init hook argc & argv  */
+  main_init_hook(argc, argv);
+
 #ifdef HAVE_LC_MESSAGES
   setlocale (LC_MESSAGES, "");
 #endif

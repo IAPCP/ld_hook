@@ -3,6 +3,8 @@
 #include <sqlite3.h>
 #include <cjson/cJSON.h>
 
+#include <uuid/uuid.h>
+
 #define __log(...)                  \
     do                              \
     {                               \
@@ -27,30 +29,30 @@
         }                                                 \
     }while(0)
 
+#define PATH_MAX 0x400
 
 
-#define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_commands(\
+
+#define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_link(\
                         id INTEGER PRIMARY KEY AUTOINCREMENT, \
                         runtime_uuid TEXT, \
                         timestamp INTEGER, \
                         output TEXT, \
                         cmdline TEXT, \
-                        arg_idx INTEGER, \
-                        opt_idx INTEGER, \
-                        opt_name TEXT, \
-                        warn_message TEXT, \
-                        arg TEXT, \
-                        orig_option_with_args_text TEXT, \
-                        canonical_option_0 TEXT, \
-                        canonical_option_1 TEXT, \
-                        canonical_option_2 TEXT, \
-                        canonical_option_3 TEXT, \
-                        canonical_option_num_elements INTEGER, \
-                        value TEXT, \
-                        errors TEXT)"
+                        json TEXT)"
 
+#ifdef CLEAN_SQL
+#define CLEAN(str)                                                \
+    char *clean_##str;                                             \
+    CHECK(clean_##str = sql_clean_string(str)); 
+#endif
+
+char *dbpath;
 sqlite3 *db;
 cJSON *json;
+char runtime_uuid[37];
+uint64_t runtime_timestamp;
+char *cmd;
 
 cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string);
 cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string) {
@@ -61,22 +63,110 @@ cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * c
     }
 }
 
-
-void new_db()
-{
-  db = sqlite3_open("test.db", &db);
+/* Get the absolute path of input file, return value should be freed manually*/
+char * get_absolute_path(const char *path) {
+  char *abspath;
+  int is_lib;
+  while (*path == ' ') {
+    path++;
+  }
+  if (*path == '/') {
+    CHECK(abspath = strdup(path));
+    return abspath;
+  }
+  if(!memcmp(path, "-l", 2)) {
+    is_lib = 1;
+    path += 2;
+    // FIXME: should resolve to absolute path
+    CHECK(abspath = strdup(path));
+    return abspath;
+  }
+  else
+  {
+    is_lib = 0;
+    CHECK(abspath = (char *)calloc(PATH_MAX, 1));
+    CHECK(getcwd(abspath, PATH_MAX));
+    CHECK(strlen(abspath) + strlen(path) + 1 < PATH_MAX);
+    strcat(abspath, "/");
+    strcat(abspath, path);
+    return abspath;
+  }
 }
+
+/* Generate a runtime_uuid */
+void gen_uuid()
+{
+  uuid_t binuuid;
+  uuid_generate_random(binuuid);
+  uuid_unparse_lower(binuuid, runtime_uuid);
+  return;
+}
+
+/* Get the current timestamp */
+void get_timestamp() { 
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    runtime_timestamp = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+  return;
+}
+
+int db_init()
+{
+  CHECK(dbpath = getenv("COMPILE_COMMANDS_DB"));
+  int rc = sqlite3_open(dbpath, &db);
+  if (rc != SQLITE_OK) {
+    log("SQL error: Can't open database: %s", sqlite3_errmsg(db));
+    sqlite3_close(db);
+    return 0;
+  }
+
+  rc = sqlite3_exec(db, CREATE_TABLE, NULL, NULL, NULL);
+  if (rc != SQLITE_OK) {
+    log("SQL error: Can't create table");
+    sqlite3_close(db);
+    return 0;
+  }
+  return 1;
+}
+
 
 void input_file_hook(char *name)
 {
-  printf("input_file_name: %s\n", name);
+  // TODO
+  // printf("input_file_name: %s\n", name);
 }
+
+#ifdef CLEAN_SQL
+char *sql_clean_string(const char *string) {
+  char *clean_string = (char *)calloc(strlen(string) * 2 + 1, 1);
+  CHECK(clean_string != NULL);
+  int i = 0, j = 0;
+  for (i = 0; i < strlen(string); i++, j++) {
+    if (string[i] == '\'') {
+      clean_string[j++] = '\'';
+      clean_string[j] = '\'';
+    } else if (string[i] == '\"') {
+      clean_string[j++] = '\"';
+      clean_string[j] = '\"';
+    } else {
+      clean_string[j] = string[i];
+    }
+  }
+  return clean_string;
+}
+#endif
+
 
 void option_hook()
 {
   cJSON *command_line_obj;
   cJSON *auxiliary_filters_arr;
   cJSON *config_obj;
+  cJSON *link_info_obj;
+  cJSON *input_file_arr;
+  lang_input_statement_type *search;
+
+
   /* if json not exist, create it */
   if (!json) {
     CHECK(json = cJSON_CreateObject());
@@ -159,9 +249,156 @@ void option_hook()
   CHECK(cJSON_AddBoolToObject(config_obj, "ctf_variables", config.ctf_variables));
   CHECK(cJSON_AddBoolToObject(config_obj, "ctf_share_duplicated", config.ctf_share_duplicated));
 
-  /* for test */
-  puts(cJSON_Print(json));
+  /* serialize bfd_link_info link_info */
+  CHECK(link_info_obj = cJSON_CreateObject());
+  cJSON_AddItemToObject(json, "link_info", link_info_obj);
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "type", link_info.type));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "symbolic", link_info.symbolic));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "export_dynamic", link_info.export_dynamic));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "create_default_symver", link_info.create_default_symver));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "gc_sections", link_info.gc_sections));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "gc_keep_exported", link_info.gc_keep_exported));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "notice_all", link_info.notice_all));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "lto_plugin_active", link_info.lto_plugin_active));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "lto_all_symbols_read", link_info.lto_all_symbols_read));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "strip_discarded", link_info.strip_discarded));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "dynamic_data", link_info.dynamic_data));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "resolve_section_groups", link_info.resolve_section_groups));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "big_endian", link_info.big_endian));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "strip", link_info.strip));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "discard", link_info.discard));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "elf_stt_common", link_info.elf_stt_common));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "common_skip_ar_symbols", link_info.common_skip_ar_symbols));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "unresolved_syms_in_objects", link_info.unresolved_syms_in_objects));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "unresolved_syms_in_shared_libs", link_info.unresolved_syms_in_shared_libs));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "warn_unresolved_syms", link_info.warn_unresolved_syms));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "static_link", link_info.static_link));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "keep_memory", link_info.keep_memory));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "emitrelocations", link_info.emitrelocations));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "relro", link_info.relro));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "enable_dt_relr", link_info.enable_dt_relr));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "separate_code", link_info.separate_code));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "eh_frame_hdr_type", link_info.eh_frame_hdr_type));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "textrel_check", link_info.textrel_check));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "emit_hash", link_info.emit_hash));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "emit_gnu_hash", link_info.emit_gnu_hash));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "reduce_memory_overheads", link_info.reduce_memory_overheads));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "traditional_format", link_info.traditional_format));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "combreloc", link_info.combreloc));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "default_imported_symver", link_info.default_imported_symver));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "new_dtags", link_info.new_dtags));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "no_ld_generated_unwind_info", link_info.no_ld_generated_unwind_info));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "task_link", link_info.task_link));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "allow_multiple_definition", link_info.allow_multiple_definition));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "prohibit_multiple_definition_absolute", link_info.prohibit_multiple_definition_absolute));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "warn_multiple_definition", link_info.warn_multiple_definition));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "allow_undefined_version", link_info.allow_undefined_version));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "dynamic", link_info.dynamic));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "execstack", link_info.execstack));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "noexecstack", link_info.noexecstack));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "optimize", link_info.optimize));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "print_gc_sections", link_info.print_gc_sections));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "warn_alternate_em", link_info.warn_alternate_em));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "user_phdrs", link_info.user_phdrs));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "load_phdrs", link_info.load_phdrs));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "check_relocs_after_open_input", link_info.check_relocs_after_open_input));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "nointerp", link_info.nointerp));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "inhibit_common_definition", link_info.inhibit_common_definition));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "has_map_file", link_info.has_map_file));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "non_contiguous_regions", link_info.non_contiguous_regions));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "non_contiguous_regions_warnings", link_info.non_contiguous_regions_warnings));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "unique_symbol", link_info.unique_symbol));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "maxpagesize_is_set", link_info.maxpagesize_is_set));
+  CHECK(cJSON_AddBoolToObject(link_info_obj, "commonpagesize_is_set", link_info.commonpagesize_is_set));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "wrap_char", link_info.wrap_char));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "path_separator", link_info.path_separator));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "compress_debug", link_info.compress_debug));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "stacksize", link_info.stacksize));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "disable_target_specific_optimizations", link_info.disable_target_specific_optimizations));
+  // some vtables and bfd struct is not dumped here
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"relax_pass", link_info.relax_pass));
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"relax_trip", link_info.relax_trip));
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"extern_protected_data", link_info.extern_protected_data));
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"dynamic_undefined_weak", link_info.dynamic_undefined_weak));
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"pei386_auto_import", link_info.pei386_auto_import));
+  CHECK(cJSON_AddNumberToObject(link_info_obj,"pei386_runtime_pseudo_reloc", link_info.pei386_runtime_pseudo_reloc));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "spare_dynamic_tags", link_info.spare_dynamic_tags));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "indirect_extern_access", link_info.indirect_extern_access));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "nocopyreloc", link_info.nocopyreloc));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "flags", link_info.flags));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "flags_1", link_info.flags_1));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "gnu_flags_1", link_info.gnu_flags_1));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "start_stop_gc", link_info.start_stop_gc));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "start_stop_visibility", link_info.start_stop_visibility));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "maxpagesize", link_info.maxpagesize));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "commonpagesize", link_info.commonpagesize));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "relro_start", link_info.relro_start));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "relro_end", link_info.relro_end));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "cache_size", link_info.cache_size));
+  CHECK(cJSON_AddNumberToObject(link_info_obj, "max_cache_size", link_info.max_cache_size));
 
+  /* serialize input_files */
+  CHECK(input_file_arr =  cJSON_AddArrayToObject(json, "input_files"));
+
+  for (search = (void *)input_file_chain.head;
+       search != NULL;
+       search = search->next_real_file)
+  {
+    cJSON *input_file;
+    if (search->local_sym_name)
+    {
+      CHECK(input_file = cJSON_CreateString(search->local_sym_name));
+      cJSON_AddItemToArray(input_file_arr, input_file);
+    }
+  }
+
+  /* generate json string */
+  char *json_str = cJSON_PrintUnformatted(json);
+
+  /* generate runtime uuid */
+  gen_uuid();
+
+  /* get timestamp */
+  get_timestamp();
+
+  /* initialize database */
+  db_init();
+
+  CHECK(json_str && cmd && runtime_uuid && runtime_timestamp && output_filename);
+  char *abs_output_filename;
+  // FIXME: get abs output filename later 
+  CHECK(abs_output_filename = strdup(output_filename));
+
+  char *sql = "INSERT INTO t_link "  \
+              "VALUES (NULL, '%s', %lu, '%s', '%s', '%s'); "; 
+  char *sql_full;
+#ifdef CLEAN_SQL
+  CLEAN(abs_output_filename);
+  CLEAN(cmd)
+  CLEAN(json_str)
+  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(clean_abs_output_filename) + strlen(clean_cmd) + strlen(clean_json_str) + 1));
+  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, clean_abs_output_filename, clean_cmd, clean_json_str);
+#else
+  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(abs_output_filename) + strlen(cmd) + strlen(json_str) + 1));
+  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, abs_output_filename, cmd, json_str);
+#endif
+
+  /* insert into database */
+  int rc = sqlite3_exec(db, sql_full, NULL, NULL, NULL);
+  if(rc != SQLITE_OK) {
+    log("SQL error: exec");
+    sqlite3_close(db);
+    return;
+  }
+
+  /* close database */
+  sqlite3_close(db);
+
+  /* free memory */
+  free(sql_full);
+  free(cmd);
+
+  cJSON_Delete(json);
 }
 
 void script_hook(char *name)
@@ -180,4 +417,18 @@ void script_hook(char *name)
   }
   CHECK(script_file_name = cJSON_CreateString(name));
   cJSON_AddItemToArray(script_files_arr, script_file_name);
+}
+
+void main_init_hook(int argc, char **argv) {
+  unsigned int cmd_len = 0;
+  for (int i = 0; i < argc; i++) {
+    cmd_len += strlen(argv[i]) + 1;
+  }
+  cmd_len += 1;
+  CHECK(cmd = (char *)calloc(cmd_len, 1));
+  for (int i = 0; i < argc; i++)
+  {
+    strcat(cmd, argv[i]);
+    strcat(cmd, " ");
+  }
 }

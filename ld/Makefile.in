@@ -1235,7 +1235,7 @@ deffilep.h: deffilep.c
 
 ld-new$(EXEEXT): $(ld_new_OBJECTS) $(ld_new_DEPENDENCIES) $(EXTRA_ld_new_DEPENDENCIES) 
 	@rm -f ld-new$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(ld_new_OBJECTS) $(ld_new_LDADD) $(LIBS) -Wl,-Bstatic -lsqlite3 -lcjson -Wl,-Bdynamic -lgcc_s -pthread -ldl -lm -lc -lgcc 
+	$(AM_V_CCLD)$(LINK) $(ld_new_OBJECTS) $(ld_new_LDADD) $(LIBS) -Wl,-Bstatic -lsqlite3 -lcjson -luuid -Wl,-Bdynamic -lgcc_s -pthread -ldl -lm -lc -lgcc 
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
