@@ -1,0 +1,1 @@
+cd /root; mkdir build_binutils; cd build_binutils; ../binutils-2.38/configure; make -j12
