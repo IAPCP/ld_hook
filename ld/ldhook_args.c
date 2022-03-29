@@ -35,6 +35,8 @@
                         id INTEGER PRIMARY KEY AUTOINCREMENT, \
                         runtime_uuid TEXT, \
                         timestamp INTEGER, \
+                        pwd TEXT, \
+                        proj_root TEXT, \
                         output TEXT, \
                         cmdline TEXT, \
                         json TEXT)"
@@ -377,8 +379,12 @@ void option_hook()
   CHECK(abs_output_filename = strdup(output_filename));
 
   char *sql = "INSERT INTO t_link "  \
-              "VALUES (NULL, '%s', %lu, '%s', '%s', '%s'); "; 
-  char *sql_full;
+              "VALUES (NULL, '%s', %lu, '%s', '%s', '%s', '%s', '%s'); "; 
+  char *sql_full, *pwd, *proj_root; 
+  CHECK(pwd = (char *)calloc(PATH_MAX + 1, 1));
+  CHECK(getcwd(pwd, PATH_MAX));
+  CHECK(proj_root = getenv("PROJ_ROOT"));
+
 #ifdef CLEAN_SQL
   CLEAN(abs_output_filename);
   CLEAN(cmd)
@@ -386,8 +392,8 @@ void option_hook()
   CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(clean_abs_output_filename) + strlen(clean_cmd) + strlen(clean_json_str) + 1));
   sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, clean_abs_output_filename, clean_cmd, clean_json_str);
 #else
-  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(abs_output_filename) + strlen(cmd) + strlen(json_str) + 1));
-  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, abs_output_filename, cmd, json_str);
+  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(pwd) + strlen(proj_root) + strlen(abs_output_filename) + strlen(cmd) + strlen(json_str) + 1));
+  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, pwd, proj_root, abs_output_filename, cmd, json_str);
 #endif
 
   /* insert into database */
@@ -403,6 +409,7 @@ void option_hook()
 
   /* free memory */
   free(sql_full);
+  free(pwd);
   free(cmd);
 
   cJSON_Delete(json);
