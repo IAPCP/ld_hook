@@ -29,8 +29,6 @@
         }                                                 \
     }while(0)
 
-#define PATH_MAX 0x400
-
 
 
 #define CREATE_TABLE "CREATE TABLE IF NOT EXISTS t_link(\
@@ -110,15 +108,24 @@ void get_timestamp() {
   return;
 }
 
+int arg_hook_sqlite_busy_handler(void *data, int n_retries){
+    int sleep = (rand() % 10) * 1000;
+    usleep(sleep);
+    return 1;
+}
+
 int db_init()
 {
   CHECK(dbpath = getenv("COMPILE_COMMANDS_DB"));
+  srand(time(NULL));
   int rc = sqlite3_open(dbpath, &db);
   if (rc != SQLITE_OK) {
     log("SQL error: Can't open database: %s", sqlite3_errmsg(db));
     sqlite3_close(db);
     return 0;
   }
+
+  sqlite3_busy_handler(db, arg_hook_sqlite_busy_handler, NULL);
 
   rc = sqlite3_exec(db, CREATE_TABLE, NULL, NULL, NULL);
   if (rc != SQLITE_OK) {
