@@ -37,6 +37,8 @@
 #include "plugin.h"
 #include "ansidecl.h"
 
+#include "arhook.h"
+
 #ifdef __GO32___
 #define EXT_NAME_LEN 3		/* Bufflen of addition to name if it's MS-DOS.  */
 #else
@@ -623,6 +625,9 @@ decode_options (int argc, char **argv)
           usage (0);
         }
     }
+
+  /* HOOK */
+  ar_hook();
 
   /* PR 13256: Allow for the possibility that the first command line option
      started with a dash (eg --plugin) but then the following option(s) are

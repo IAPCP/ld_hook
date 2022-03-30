@@ -207,7 +207,8 @@ am__v_lt_0 = --silent
 am__v_lt_1 = 
 am_ar_OBJECTS = arparse.$(OBJEXT) arlex.$(OBJEXT) ar.$(OBJEXT) \
 	not-ranlib.$(OBJEXT) arsup.$(OBJEXT) rename.$(OBJEXT) \
-	binemul.$(OBJEXT) emul_$(EMULATION).$(OBJEXT) $(am__objects_1)
+	binemul.$(OBJEXT) emul_$(EMULATION).$(OBJEXT) $(am__objects_1) \
+	arhook.$(OBJEXT) sqlite3.$(OBJEXT) cJSON.$(OBJEXT) uuid4.$(OBJEXT)
 ar_OBJECTS = $(am_ar_OBJECTS)
 bfdtest1_SOURCES = bfdtest1.c
 bfdtest1_OBJECTS = bfdtest1.$(OBJEXT)
@@ -248,7 +249,8 @@ objdump_OBJECTS = $(am_objdump_OBJECTS)
 @ENABLE_LIBCTF_TRUE@am__DEPENDENCIES_2 = ../libctf/libctf.la
 am_ranlib_OBJECTS = ar.$(OBJEXT) is-ranlib.$(OBJEXT) arparse.$(OBJEXT) \
 	arlex.$(OBJEXT) arsup.$(OBJEXT) rename.$(OBJEXT) \
-	binemul.$(OBJEXT) emul_$(EMULATION).$(OBJEXT) $(am__objects_1)
+	binemul.$(OBJEXT) emul_$(EMULATION).$(OBJEXT) $(am__objects_1) \
+	arhook.$(OBJEXT) sqlite3.$(OBJEXT) cJSON.$(OBJEXT) uuid4.$(OBJEXT)
 ranlib_OBJECTS = $(am_ranlib_OBJECTS)
 am_readelf_OBJECTS = readelf.$(OBJEXT) version.$(OBJEXT) \
 	unwind-ia64.$(OBJEXT) dwarf.$(OBJEXT) demanguse.$(OBJEXT) \
@@ -995,7 +997,7 @@ arparse.h: arparse.c
 
 ar$(EXEEXT): $(ar_OBJECTS) $(ar_DEPENDENCIES) $(EXTRA_ar_DEPENDENCIES) 
 	@rm -f ar$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(ar_OBJECTS) $(ar_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(ar_OBJECTS) $(ar_LDADD) $(LIBS) -pthread -ldl
 
 bfdtest1$(EXEEXT): $(bfdtest1_OBJECTS) $(bfdtest1_DEPENDENCIES) $(EXTRA_bfdtest1_DEPENDENCIES) 
 	@rm -f bfdtest1$(EXEEXT)
@@ -1042,7 +1044,7 @@ objdump$(EXEEXT): $(objdump_OBJECTS) $(objdump_DEPENDENCIES) $(EXTRA_objdump_DEP
 
 ranlib$(EXEEXT): $(ranlib_OBJECTS) $(ranlib_DEPENDENCIES) $(EXTRA_ranlib_DEPENDENCIES) 
 	@rm -f ranlib$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(ranlib_OBJECTS) $(ranlib_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(ranlib_OBJECTS) $(ranlib_LDADD) $(LIBS) -pthread -ldl
 
 readelf$(EXEEXT): $(readelf_OBJECTS) $(readelf_DEPENDENCIES) $(EXTRA_readelf_DEPENDENCIES) 
 	@rm -f readelf$(EXEEXT)

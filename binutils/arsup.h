@@ -18,6 +18,9 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
+#ifndef ARSUP_H
+#define ARSUP_H
+
 struct list {
 	char *name;
 	struct list *next;
@@ -60,3 +63,5 @@ int yyparse (void);
 void extract_file (bfd * abfd);
 
 extern int interactive;
+
+#endif /* ARSUP_H */ 
