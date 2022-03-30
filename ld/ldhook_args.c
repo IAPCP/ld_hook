@@ -1,15 +1,24 @@
+
 #include "ldhook_args.h"
+#include "sqlite3.h"
+#include "cJSON.h"
+#include "uuid4.h"
 
-#include <sqlite3.h>
-#include <cjson/cJSON.h>
+#define LDHOOK_DEBUG
 
-#include <uuid/uuid.h>
-
+#ifdef LDHOOK_DEBUG
 #define __log(...)                  \
     do                              \
     {                               \
         fprintf(stderr,##__VA_ARGS__);        \
     } while(0)      
+#else
+#define __log(...) \
+  do  \
+  { \
+    ; \
+  } while (0)
+#endif
  
 #define __format(__fmt__) "[-] %s: %d " __fmt__ "\n"
  
@@ -25,6 +34,7 @@
         if(!(exp))                                        \
         {                                                 \
             log("check failed: %s", #exp);                \
+            ldhook_status = failed; \
             return;                                    \
         }                                                 \
     }while(0)
@@ -50,9 +60,37 @@
 char *dbpath;
 sqlite3 *db;
 cJSON *json;
-char runtime_uuid[37];
+char runtime_uuid[UUID4_LEN];
 uint64_t runtime_timestamp;
 char *cmd;
+char *proj_root;
+enum LDHOOK_STATUS ldhook_status;
+
+
+int maybe_init_ldhook(){
+  if(ldhook_status == uninitialized){
+    proj_root = getenv("PROJ_ROOT");
+    dbpath = getenv("COMPILE_COMMANDS_DB");
+    if(dbpath == NULL){
+      ldhook_status = blocked;
+      return -1;
+    }
+    ldhook_status = initialized;
+  }
+  else if(ldhook_status == initialized){
+    return 1;
+  }
+  else if(ldhook_status == blocked){
+    return -1;
+  }
+  else if(ldhook_status == failed){
+    return -1;
+  }
+  else{
+    log("unknown ldhook_status: %d", ldhook_status);
+    return -1;
+  }
+}
 
 cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string);
 cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string) {
@@ -96,9 +134,8 @@ char * get_absolute_path(const char *path) {
 /* Generate a runtime_uuid */
 void gen_uuid()
 {
-  uuid_t binuuid;
-  uuid_generate_random(binuuid);
-  uuid_unparse_lower(binuuid, runtime_uuid);
+  uuid4_init();
+  uuid4_generate(runtime_uuid);
   return;
 }
 
@@ -118,7 +155,6 @@ int arg_hook_sqlite_busy_handler(void *data, int n_retries){
 
 int db_init()
 {
-  CHECK(dbpath = getenv("COMPILE_COMMANDS_DB"));
   srand(time(NULL));
   int rc = sqlite3_open(dbpath, &db);
   if (rc != SQLITE_OK) {
@@ -141,6 +177,9 @@ int db_init()
 
 void input_file_hook(char *name)
 {
+  if(maybe_init_ldhook() == -1){
+    return;
+  }
   // TODO
   // printf("input_file_name: %s\n", name);
 }
@@ -175,6 +214,9 @@ void option_hook()
   cJSON *input_file_arr;
   lang_input_statement_type *search;
 
+  if(maybe_init_ldhook() == -1){
+    return;
+  }
 
   /* if json not exist, create it */
   if (!json) {
@@ -380,11 +422,9 @@ void option_hook()
 
   char *sql = "INSERT INTO t_link "  \
               "VALUES (NULL, '%s', %lu, '%s', '%s', '%s', '%s', '%s'); "; 
-  char *sql_full, *pwd, *proj_root; 
-  CHECK(pwd = (char *)calloc(PATH_MAX + 1, 1));
-  CHECK(getcwd(pwd, PATH_MAX));
-  CHECK(proj_root = getenv("PROJ_ROOT"));
+  char *sql_full;
 
+  char *pwd = getcwd(NULL, PATH_MAX);
 #ifdef CLEAN_SQL
   CLEAN(abs_output_filename);
   CLEAN(cmd)
@@ -409,7 +449,6 @@ void option_hook()
 
   /* free memory */
   free(sql_full);
-  free(pwd);
   free(cmd);
 
   cJSON_Delete(json);
@@ -419,6 +458,9 @@ void script_hook(char *name)
 {
   cJSON *script_files_arr;
   cJSON *script_file_name;
+
+  if(maybe_init_ldhook() == -1)
+    return;
 
   /* if json not exist, create it */
   if (!json) {
@@ -435,6 +477,8 @@ void script_hook(char *name)
 
 void main_init_hook(int argc, char **argv) {
   unsigned int cmd_len = 0;
+  if(maybe_init_ldhook() == -1)
+    return;
   for (int i = 0; i < argc; i++) {
     cmd_len += strlen(argv[i]) + 1;
   }

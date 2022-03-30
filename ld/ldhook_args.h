@@ -26,5 +26,12 @@ void option_hook(void);
 void script_hook(char* name);
 void main_init_hook(int argc, char **argv);
 
+enum LDHOOK_STATUS {
+    uninitialized,
+    initialized,
+    blocked,
+    failed
+};
+
 
 #endif

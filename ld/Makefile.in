@@ -210,7 +210,8 @@ am_ld_new_OBJECTS = ldgram.$(OBJEXT) ldlex-wrapper.$(OBJEXT) \
 	ldctor.$(OBJEXT) ldmain.$(OBJEXT) ldwrite.$(OBJEXT) \
 	ldexp.$(OBJEXT) ldemul.$(OBJEXT) ldver.$(OBJEXT) \
 	ldmisc.$(OBJEXT) ldfile.$(OBJEXT) ldcref.$(OBJEXT) \
-	plugin.$(OBJEXT) ldbuildid.$(OBJEXT) ldhook_args.$(OBJEXT) # sqlite3.$(OBJEXT)
+	plugin.$(OBJEXT) ldbuildid.$(OBJEXT) ldhook_args.$(OBJEXT) \
+	sqlite3.$(OBJEXT) cJSON.$(OBJEXT) uuid4.$(OBJEXT)
 ld_new_OBJECTS = $(am_ld_new_OBJECTS)
 am__DEPENDENCIES_1 =
 @ENABLE_LIBCTF_TRUE@am__DEPENDENCIES_2 = ../libctf/libctf.la
@@ -1235,7 +1236,7 @@ deffilep.h: deffilep.c
 
 ld-new$(EXEEXT): $(ld_new_OBJECTS) $(ld_new_DEPENDENCIES) $(EXTRA_ld_new_DEPENDENCIES) 
 	@rm -f ld-new$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(ld_new_OBJECTS) $(ld_new_LDADD) $(LIBS) -Wl,-Bstatic -lsqlite3 -lcjson -luuid -Wl,-Bdynamic -lgcc_s -pthread -ldl -lm -lc -lgcc 
+	$(AM_V_CCLD)$(LINK) $(ld_new_OBJECTS) $(ld_new_LDADD) $(LIBS) -pthread -ldl
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
