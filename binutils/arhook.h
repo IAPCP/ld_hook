@@ -19,6 +19,7 @@
 #include <stdio.h>
 
 extern void ar_hook(void);
+extern void main_init_hook(int argc, char **argv);
 
 
 #endif /* ARHOOK_H */

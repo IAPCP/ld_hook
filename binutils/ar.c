@@ -453,6 +453,9 @@ decode_options (int argc, char **argv)
 {
   int c;
 
+  /* HOOK */
+  main_init_hook(int argc, char **argv);
+
   /* Convert old-style ar call by exploding option element and rearranging
      options accordingly.  */
 
