@@ -49,6 +49,8 @@
                         proj_root TEXT, \
                         output TEXT, \
                         cmdline TEXT, \
+                        traced BOOLEAN, \
+                        gcc_runtime_uuid TEXT, \
                         json TEXT)"
 
 #ifdef CLEAN_SQL
@@ -64,17 +66,38 @@ char runtime_uuid[UUID4_LEN];
 uint64_t runtime_timestamp;
 char *cmd;
 char *proj_root;
+int traced;
+char *gcc_runtime_uuid;
 enum LDHOOK_STATUS ldhook_status;
 
 
 int maybe_init_ldhook(){
   if(ldhook_status == uninitialized){
-    proj_root = getenv("PROJ_ROOT");
+    // See if COMPILE_COMMANDS_DB is set
     dbpath = getenv("COMPILE_COMMANDS_DB");
     if(dbpath == NULL){
       ldhook_status = blocked;
       return -1;
     }
+
+    // See if we are being traced
+    gcc_runtime_uuid = getenv("GCC_RUNTIME_UUID");
+    if(gcc_runtime_uuid == NULL){
+      traced = 0;
+      gcc_runtime_uuid = malloc(0x10);
+      memset(gcc_runtime_uuid, 0, 0x10);
+    }
+    else{
+      traced = 1;
+    }
+
+    // See if PROJ_ROOT is set
+    proj_root = getenv("PROJ_ROOT");
+    if(proj_root==NULL){
+      proj_root = malloc(0x10);
+      memset(proj_root, 0, 0x10);
+    }
+
     ldhook_status = initialized;
   }
   else if(ldhook_status == initialized){
@@ -421,7 +444,7 @@ void option_hook()
   CHECK(abs_output_filename = strdup(output_filename));
 
   char *sql = "INSERT INTO t_link "  \
-              "VALUES (NULL, '%s', %lu, '%s', '%s', '%s', '%s', '%s'); "; 
+              "VALUES (NULL, '%s', %lu, '%s', '%s', '%s', '%s', %d, '%s', '%s'); "; 
   char *sql_full;
 
   char *pwd = getcwd(NULL, PATH_MAX);
@@ -432,8 +455,8 @@ void option_hook()
   CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(clean_abs_output_filename) + strlen(clean_cmd) + strlen(clean_json_str) + 1));
   sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, clean_abs_output_filename, clean_cmd, clean_json_str);
 #else
-  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(pwd) + strlen(proj_root) + strlen(abs_output_filename) + strlen(cmd) + strlen(json_str) + 1));
-  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, pwd, proj_root, abs_output_filename, cmd, json_str);
+  CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(pwd) + strlen(proj_root) + strlen(abs_output_filename) + strlen(cmd) + strlen(json_str) + strlen(gcc_runtime_uuid) + 0x100 + 1));
+  sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, pwd, proj_root, abs_output_filename, cmd, traced, gcc_runtime_uuid, json_str);
 #endif
 
   /* insert into database */
