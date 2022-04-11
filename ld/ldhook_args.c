@@ -68,6 +68,7 @@ char *cmd;
 char *proj_root;
 int traced;
 char *gcc_runtime_uuid;
+char *archive;
 enum LDHOOK_STATUS ldhook_status;
 
 
@@ -96,6 +97,13 @@ int maybe_init_ldhook(){
     if(proj_root==NULL){
       proj_root = malloc(0x10);
       memset(proj_root, 0, 0x10);
+    }
+
+    // See if ARCHIVE is set
+    archive = getenv("ARCHIVE");
+    if (archive == NULL){
+      archive = malloc(0x10);
+      memset(archive, 0, 0x10);
     }
 
     ldhook_status = initialized;
@@ -459,12 +467,28 @@ void option_hook()
   sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, pwd, proj_root, abs_output_filename, cmd, traced, gcc_runtime_uuid, json_str);
 #endif
 
+
+
   /* insert into database */
   int rc = sqlite3_exec(db, sql_full, NULL, NULL, NULL);
   if(rc != SQLITE_OK) {
     log("SQL error: exec");
     sqlite3_close(db);
     return;
+  }
+
+  /* copy input object files to ARCHIVE */
+  cJSON *tmp_file;
+  char *tmp_cmd_buf;
+  CHECK(tmp_cmd_buf = (char *)malloc(16 + PATH_MAX + strlen(archive) + strlen(runtime_uuid) + 1));
+  int n_array = cJSON_GetArraySize(input_file_arr);
+  for (int i = 0; i < n_array; i++) {
+    tmp_file = cJSON_GetArrayItem(input_file_arr, i);
+    if (tmp_file->valuestring[0] == '-' && tmp_file->valuestring[1] == 'l') {
+      continue;
+    }
+    sprintf(tmp_cmd_buf, "mkdir -p %2$s/%3$s && cp %1$s %2$s/%3$s/", tmp_file->valuestring, archive, gcc_runtime_uuid);
+    system(tmp_cmd_buf);
   }
 
   /* close database */

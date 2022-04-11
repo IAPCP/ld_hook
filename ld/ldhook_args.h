@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <stdlib.h>
 
 void input_file_hook(char* name);
 void option_hook(void);
