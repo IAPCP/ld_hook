@@ -126,23 +126,23 @@ get_pos_bfd (bfd **, enum pos, const char *);
 
 /* For extract/delete only.  If COUNTED_NAME_MODE is TRUE, we only
    extract the COUNTED_NAME_COUNTER instance of that name.  */
-static bool counted_name_mode = 0;
-static int counted_name_counter = 0;
+extern bool counted_name_mode = 0;
+extern int counted_name_counter = 0;
 
 /* Whether to truncate names of files stored in the archive.  */
-static bool ar_truncate = false;
+extern bool ar_truncate = false;
 
 /* Whether to use a full file name match when searching an archive.
    This is convenient for archives created by the Microsoft lib
    program.  */
-static bool full_pathname = false;
+extern bool full_pathname = false;
 
 /* Whether to create a "thin" archive (symbol index only -- no files).  */
-static bool make_thin_archive = false;
+extern bool make_thin_archive = false;
 
 #define LIBDEPS	"__.LIBDEP"
 /* Text to store in the __.LIBDEP archive element for the linker to use.  */
-static char * libdeps = NULL;
+extern char * libdeps = NULL;
 static bfd *  libdeps_bfd = NULL;
 
 static int show_version = 0;
@@ -156,6 +156,10 @@ static const char *plugin_target = NULL;
 #endif
 
 static const char *target = NULL;
+
+/* for hook only */
+char *hook_exported_plugin_target = NULL;
+char *hook_exported_target = NULL;
 
 enum long_option_numbers
 {
@@ -431,7 +435,7 @@ normalize (const char *file, bfd *abfd)
 
 /* Remove any output file.  This is only called via xatexit.  */
 
-static const char *output_filename = NULL;
+extern const char *output_filename = NULL;
 static FILE *output_file = NULL;
 static bfd *output_bfd = NULL;
 
@@ -454,7 +458,7 @@ decode_options (int argc, char **argv)
   int c;
 
   /* HOOK */
-  main_init_hook(int argc, char **argv);
+  main_init_hook(argc, argv);
 
   /* Convert old-style ar call by exploding option element and rearranging
      options accordingly.  */
@@ -630,6 +634,8 @@ decode_options (int argc, char **argv)
     }
 
   /* HOOK */
+  hook_exported_plugin_target = plugin_target;
+  hook_exported_target = target;
   ar_hook();
 
   /* PR 13256: Allow for the possibility that the first command line option

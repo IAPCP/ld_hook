@@ -57,8 +57,8 @@ uint64_t runtime_timestamp;
 char *cmd;
 char *proj_root;
 
-cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string);
-cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string) {
+// static cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string);
+static cJSON* cJSON_AddStringOtherwiseNullToObject(cJSON * const object, const char * const name, const char * const string) {
     if (string) {
         return cJSON_AddStringToObject(object, name, string);
     } else {
@@ -109,19 +109,117 @@ int db_init()
   return 1;
 }
 
+
+/* vars from ar.c */
+extern int is_ranlib;
+extern int silent_create;
+extern int verbose;
+extern int display_offsets;
+extern int preserve_dates;
+extern int newer_only;
+extern int write_armap;
+extern int deterministic;			
+extern char *posname;
+
+extern enum operations
+  {
+    none = 0, del, replace, print_table,
+    print_files, extract, move, quick_append
+  } operation;
+
+extern enum pos
+  {
+    pos_default, pos_before, pos_after, pos_end
+  } postype;
+
+extern bool operation_alters_arch;
+
+extern bool counted_name_mode;
+extern int counted_name_counter;
+extern bool ar_truncate;
+extern bool full_pathname;
+extern bool make_thin_archive;
+extern char * libdeps;
+extern const char * output_filename;
+
 /* ar hook main */
 void ar_hook() {
     CHECK(dbpath = getenv("COMPILE_COMMANDS_DB"));
-    CHECK(proj_root = getenv("PROJ_ROOT");)
+    CHECK(proj_root = getenv("PROJ_ROOT"));
 
-    // TODO
+    /* if json not exist, create it */
+    if (!json) {
+      CHECK(json = cJSON_CreateObject());
+    }
+
+    CHECK(cJSON_AddNumberToObject(json, "is_ranlib", is_ranlib));
+    CHECK(cJSON_AddNumberToObject(json, "silent_create", silent_create));
+    CHECK(cJSON_AddNumberToObject(json, "verbose", verbose));
+    CHECK(cJSON_AddNumberToObject(json, "display_offsets", display_offsets));
+    CHECK(cJSON_AddNumberToObject(json, "preserve_dates", preserve_dates));
+    CHECK(cJSON_AddNumberToObject(json, "newer_only", newer_only));
+    CHECK(cJSON_AddNumberToObject(json, "write_armap", write_armap));
+    CHECK(cJSON_AddNumberToObject(json, "deterministic", deterministic));
+    CHECK(cJSON_AddStringOtherwiseNullToObject(json, "posname", posname));
+    CHECK(cJSON_AddNumberToObject(json, "operation", operation));
+    CHECK(cJSON_AddNumberToObject(json, "postype", postype));
+    CHECK(cJSON_AddBoolToObject(json, "operation_alters_arch", operation_alters_arch));
+    CHECK(cJSON_AddBoolToObject(json, "counted_name_mode", counted_name_mode));
+    CHECK(cJSON_AddNumberToObject(json, "counted_name_counter", counted_name_counter));
+    CHECK(cJSON_AddBoolToObject(json, "ar_truncate", ar_truncate));
+    CHECK(cJSON_AddBoolToObject(json, "full_pathname", full_pathname));
+    CHECK(cJSON_AddBoolToObject(json, "make_thin_archive", make_thin_archive));
+    CHECK(cJSON_AddStringOtherwiseNullToObject(json, "libdeps", libdeps));
+
+    /* generate json string */
+    char *json_str = cJSON_PrintUnformatted(json);
+
+    /* generate runtime uuid */
+    gen_uuid();
+
+    /* get timestamp */
+    get_timestamp();
+
+    /* initialize database */
+    db_init();
+
+    if (!output_filename) {
+      output_filename = "NULL";
+    }
+
+    CHECK(json_str && cmd && runtime_uuid && runtime_timestamp && output_filename);
+    char *sql = "INSERT INTO t_ar "  \
+                "VALUES (NULL, '%s', %lu, '%s', '%s', '%s', '%s', '%s'); "; 
+
+    char *sql_full;
+    char *pwd = getcwd(NULL, PATH_MAX);
+    CHECK(sql_full = (char *)malloc(strlen(sql) + strlen(runtime_uuid) + 20 + strlen(pwd) + strlen(proj_root) + strlen(output_filename) + strlen(cmd) + strlen(json_str) + 1));
+    sprintf(sql_full, sql, runtime_uuid, runtime_timestamp, pwd, proj_root, output_filename, cmd, json_str);
+
+    /* insert into database */
+    int rc = sqlite3_exec(db, sql_full, NULL, NULL, NULL);
+    if(rc != SQLITE_OK) {
+      log("SQL error: exec");
+      sqlite3_close(db);
+      return;
+    }
+  
+    /* close database */
+    sqlite3_close(db);
+
+    /* free memory */
+    free(sql_full);
+    free(cmd);
+
+    cJSON_Delete(json);
+
+    json = NULL;
+
 }
 
 /* hook origin argv */
 void main_init_hook(int argc, char **argv) {
   unsigned int cmd_len = 0;
-  if(maybe_init_ldhook() == -1)
-    return;
   for (int i = 0; i < argc; i++) {
     cmd_len += strlen(argv[i]) + 1;
   }

@@ -452,6 +452,7 @@ void option_hook()
   free(cmd);
 
   cJSON_Delete(json);
+  json = NULL;
 }
 
 void script_hook(char *name)
