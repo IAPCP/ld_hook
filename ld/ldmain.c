@@ -56,6 +56,10 @@
 #define TARGET_SYSTEM_ROOT ""
 #endif
 
+/* for HOOKs */
+void main_init_hook(int argc, char **argv);
+void fini_hook(void);
+
 /* EXPORTS */
 
 FILE *saved_script_handle = NULL;
@@ -553,6 +557,9 @@ main (int argc, char **argv)
     {
       if (!bfd_close (link_info.output_bfd))
 	einfo (_("%F%P: %pB: final close failed: %E\n"), link_info.output_bfd);
+
+  /* HOOK */
+  fini_hook();
 
       /* If the --force-exe-suffix is enabled, and we're making an
 	 executable file and it doesn't end in .exe, copy it to one

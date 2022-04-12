@@ -26,6 +26,7 @@ void input_file_hook(char* name);
 void option_hook(void);
 void script_hook(char* name);
 void main_init_hook(int argc, char **argv);
+void fini_hook(void);
 
 enum LDHOOK_STATUS {
     uninitialized,

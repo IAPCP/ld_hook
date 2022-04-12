@@ -480,7 +480,7 @@ void option_hook()
   /* copy input object files to ARCHIVE */
   cJSON *tmp_file;
   char *tmp_cmd_buf;
-  CHECK(tmp_cmd_buf = (char *)malloc(16 + PATH_MAX + strlen(archive) + strlen(runtime_uuid) + 1));
+  CHECK(tmp_cmd_buf = (char *)malloc(41 + PATH_MAX + strlen(archive) + strlen(runtime_uuid) + 1));
   int n_array = cJSON_GetArraySize(input_file_arr);
   for (int i = 0; i < n_array; i++) {
     tmp_file = cJSON_GetArrayItem(input_file_arr, i);
@@ -497,6 +497,7 @@ void option_hook()
   /* free memory */
   free(sql_full);
   free(cmd);
+  free(tmp_cmd_buf);
 
   cJSON_Delete(json);
   json = NULL;
@@ -537,4 +538,12 @@ void main_init_hook(int argc, char **argv) {
     strcat(cmd, argv[i]);
     strcat(cmd, " ");
   }
+}
+
+void fini_hook() {
+  char *tmp_cmd_buf;
+  CHECK(tmp_cmd_buf = (char *)malloc(55 + PATH_MAX + strlen(archive)*2 + strlen(runtime_uuid)*2 + 1));
+  sprintf(tmp_cmd_buf, "mkdir -p %2$s/%3$s/output && cp %1$s %2$s/%3$s/output/", output_filename, archive, runtime_uuid);
+  system(tmp_cmd_buf);
+  free(tmp_cmd_buf);
 }
