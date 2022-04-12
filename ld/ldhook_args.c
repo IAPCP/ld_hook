@@ -542,6 +542,10 @@ void main_init_hook(int argc, char **argv) {
 
 void fini_hook() {
   char *tmp_cmd_buf;
+
+  if(maybe_init_ldhook() == -1){
+    return;
+  }
   CHECK(tmp_cmd_buf = (char *)malloc(55 + PATH_MAX + strlen(archive)*2 + strlen(runtime_uuid)*2 + 1));
   sprintf(tmp_cmd_buf, "mkdir -p %2$s/%3$s/output && cp %1$s %2$s/%3$s/output/", output_filename, archive, runtime_uuid);
   system(tmp_cmd_buf);
