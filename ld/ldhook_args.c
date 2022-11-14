@@ -100,7 +100,7 @@ int maybe_init_ldhook(){
     }
 
     // See if ARCHIVE is set
-    archive = getenv("ARCHIVE");
+    archive = getenv("LD_ARCHIVE");
     if (archive == NULL){
       archive = malloc(0x10);
       memset(archive, 0, 0x10);
