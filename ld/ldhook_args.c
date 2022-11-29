@@ -134,13 +134,13 @@ int pgetppid(int pid) {
 }
 
 void process_info() {
-  char *gcc_archive_path = getenv("GCC_ARCHIVE");
+  char *ld_archive_path = getenv("LD_ARCHIVE");
   char *command = (char *)xmalloc(65535);
-  snprintf(command, 65535, "mkdir -p %s/%s", gcc_archive_path, runtime_uuid);
+  snprintf(command, 65535, "mkdir -p %s/%s", ld_archive_path, runtime_uuid);
   system(command);
   free(command);
   char save_path[65535];
-  snprintf(save_path, 65535, "%s/%s/process_info", gcc_archive_path,
+  snprintf(save_path, 65535, "%s/%s/process_info", ld_archive_path,
            runtime_uuid);
   FILE *save_file = fopen(save_path, "w");
   pid_t pid = getpid();
@@ -170,6 +170,12 @@ int maybe_init_ldhook() {
       return -1;
     }
 
+    char *do_not_trace = getenv("DO_NOT_TRACE");
+    if (do_not_trace != NULL) {
+      ldhook_status = blocked;
+      return -1;
+    }
+
     // See if we are being traced
     gcc_runtime_uuid = getenv("GCC_RUNTIME_UUID");
     if (gcc_runtime_uuid == NULL) {
@@ -195,7 +201,7 @@ int maybe_init_ldhook() {
     }
 
     // Check arg of parent process
-    process_info();
+    // process_info();
 
     ldhook_status = initialized;
   } else if (ldhook_status == initialized) {
@@ -635,12 +641,6 @@ void option_hook() {
   /* generate json string */
   char *json_str = cJSON_PrintUnformatted(json);
 
-  /* generate runtime uuid */
-  gen_uuid();
-
-  /* get timestamp */
-  get_timestamp();
-
   /* initialize database */
   db_init();
 
@@ -733,6 +733,13 @@ void script_hook(char *name) {
 
 void main_init_hook(int argc, char **argv) {
   unsigned int cmd_len = 0;
+  
+  /* generate runtime uuid */
+  gen_uuid();
+
+  /* get timestamp */
+  get_timestamp();
+
   if (maybe_init_ldhook() == -1)
     return;
   for (int i = 0; i < argc; i++) {
