@@ -694,7 +694,7 @@ void option_hook() {
     if (tmp_file->valuestring[0] == '-' && tmp_file->valuestring[1] == 'l') {
       continue;
     }
-    sprintf(tmp_cmd_buf, "mkdir -p %2$s/%3$s && cp %1$s %2$s/%3$s/",
+    sprintf(tmp_cmd_buf, "mkdir -p %2$s/%3$s/input && cp %1$s %2$s/%3$s/input",
             tmp_file->valuestring, archive, runtime_uuid);
     system(tmp_cmd_buf);
   }
